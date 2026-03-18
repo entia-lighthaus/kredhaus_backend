@@ -44,7 +44,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(default=timezone.now)
 
     # NIN and BVN Information. For now, We use a dummy mocks.
-    # When we are ready to go live, we will use Prembly for NIN and Mono for BVN linkage
+    # When we are ready to go live, we will use Prembly with strong liveness check for NIN... and Mono for BVN linkage
     # Identity verification fields
     nin             = models.CharField(max_length=11, blank=True, null=True)
     bvn             = models.CharField(max_length=11, blank=True, null=True)
@@ -52,9 +52,52 @@ class User(AbstractBaseUser, PermissionsMixin):
     bvn_verified    = models.BooleanField(default=False)
     phone_verified  = models.BooleanField(default=False)
 
+
+    # Adding KYC to the user model
+    KYC_TIER_CHOICES = [
+        (0, 'Unverified'),
+        (1, 'Basic'),
+        (2, 'Financial'),
+        (3, 'Financing'),
+    ]
+
+    kyc_tier = models.IntegerField(choices=KYC_TIER_CHOICES, default=0)
+
+    # Tier 2 fields
+    address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    lga           = models.CharField(max_length=64, blank=True, null=True)
+    state         = models.CharField(max_length=64, blank=True, null=True)
+
+    # Tier 3 fields
+    employer_name    = models.CharField(max_length=128, blank=True, null=True)
+    monthly_income   = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    nok_name         = models.CharField(max_length=128, blank=True, null=True)
+    nok_phone        = models.CharField(max_length=20, blank=True, null=True)
+    nok_relationship = models.CharField(max_length=64, blank=True, null=True)
+
     USERNAME_FIELD  = 'phone'
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
     def __str__(self):
         return f'{self.first_name} {self.last_name} ({self.phone})'
     
+    
+    # This function checks what information the user has completed during registration and returns which tier they qualify for.  
+    def get_kyc_requirements_met(self):
+     
+        if self.nin_verified and self.phone_verified:
+            if self.bvn_verified and self.address_line1:
+                if self.nok_name and self.monthly_income:
+                    return 3
+                return 2
+            return 1
+        return 0
+
+    
+    # This function automatically sets kyc_tier based on what information the user has verified.
+    def upgrade_kyc_tier(self):
+        
+        self.kyc_tier = self.get_kyc_requirements_met()
+        self.save(update_fields=['kyc_tier'])
+        
