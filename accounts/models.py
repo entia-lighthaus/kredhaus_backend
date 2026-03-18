@@ -43,6 +43,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff   = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
+    # NIN and BVN Information. For now, We use a dummy mocks.
+    # When we are ready to go live, we will use Prembly for NIN and Mono for BVN linkage
+    # Identity verification fields
+    nin             = models.CharField(max_length=11, blank=True, null=True)
+    bvn             = models.CharField(max_length=11, blank=True, null=True)
+    nin_verified    = models.BooleanField(default=False)
+    bvn_verified    = models.BooleanField(default=False)
+    phone_verified  = models.BooleanField(default=False)
+
     USERNAME_FIELD  = 'phone'
     REQUIRED_FIELDS = ['first_name', 'last_name']
 

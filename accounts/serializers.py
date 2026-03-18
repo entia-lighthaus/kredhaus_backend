@@ -80,5 +80,31 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'last_name',
             'email',
             'role',
+            'nin_verified',
+            'bvn_verified',
+            'phone_verified',
             'date_joined',
         ]
+
+# NIN and BVN serializers.
+# They validate input only, they don't map directly to a model. This is the right pattern for action-based endpoints like verification.
+class NINVerificationSerializer(serializers.Serializer):
+    nin = serializers.CharField(min_length=11, max_length=11)
+
+    def validate_nin(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                'NIN must be 11 digits with no letters or spaces.'
+            )
+        return value
+
+
+class BVNVerificationSerializer(serializers.Serializer):
+    bvn = serializers.CharField(min_length=11, max_length=11)
+
+    def validate_bvn(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                'BVN must be 11 digits with no letters or spaces.'
+            )
+        return value

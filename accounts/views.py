@@ -3,7 +3,7 @@ from rest_framework.views        import APIView
 from rest_framework.response     import Response
 from rest_framework.permissions  import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer, NINVerificationSerializer, BVNVerificationSerializer
 
 
 
@@ -90,3 +90,52 @@ class LogoutView(APIView):
                 {'error': 'Invalid or expired token.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+# NIN AND BVN INFO
+class NINVerificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = NINVerificationSerializer(data=request.data)
+
+        if serializer.is_valid():
+            nin  = serializer.validated_data['nin']
+            user = request.user
+
+            # In production this is where you call NIMC or Smile Identity API
+            # For now we simulate a successful verification
+            user.nin          = nin
+            user.nin_verified = True
+            user.save()
+
+            return Response({
+                'message':      'NIN verified successfully.',
+                'nin_verified': user.nin_verified,
+            })
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BVNVerificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = BVNVerificationSerializer(data=request.data)
+
+        if serializer.is_valid():
+            bvn  = serializer.validated_data['bvn']
+            user = request.user
+
+            # In production this is where you call Mono or Okra BVN API
+            # For now we simulate a successful verification
+            user.bvn          = bvn
+            user.bvn_verified = True
+            user.save()
+
+            return Response({
+                'message':      'BVN linked successfully.',
+                'bvn_verified': user.bvn_verified,
+            })
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
