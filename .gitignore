@@ -13,7 +13,7 @@ __pycache__/
 media/
 staticfiles/
 
-# Environment variables — NEVER commit this
+# Environment variables 
 .env
 
 # VS Code

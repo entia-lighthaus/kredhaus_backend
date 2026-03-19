@@ -101,7 +101,7 @@ class NINVerificationView(APIView):
             nin  = serializer.validated_data['nin']
             user = request.user
 
-            # In production this is where you call NIMC or Smile Identity API
+            # In production this is where NIMC is called or Smile Identity API
             # For now we simulate a successful verification
             user.nin          = nin
             user.nin_verified = True
@@ -153,10 +153,9 @@ class KYCStatusView(APIView):
 
 
 class KYCTier1View(APIView):
-    """
-    User submits NIN to achieve Tier 1.
-    Requirements: phone verified + NIN verified.
-    """
+
+    # User submits NIN to achieve Tier 1 ...Requirements: phone verified + NIN verified.
+    
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -225,12 +224,22 @@ class KYCTier2View(APIView):
         user.address_line2 = data.get('address_line2', '')
         user.lga           = data['lga']
         user.state         = data['state']
+        user.save()
+
+        user.refresh_from_db()
         user.upgrade_kyc_tier()
 
         return Response({
             'message':  'Tier 2 verification complete.',
             'kyc_tier': user.kyc_tier,
             'unlocks':  ['Rent payments', 'Savings pockets', 'Credit building'],
+            'debug': {
+            'phone_verified': user.phone_verified,
+            'nin_verified':   user.nin_verified,
+            'bvn_verified':   user.bvn_verified,
+            'address_line1':  user.address_line1,
+            'nok_name':       user.nok_name,
+            'monthly_income': str(user.monthly_income),}
         })
 
 

@@ -148,3 +148,31 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES':      ('Bearer',),
 }
 
+# REF
+# This references the KYC permission for each user that enables them to perform various actions on the app
+# based on the information that they provide and we collect.
+# If the user does not meet the tier requirement they get a clear error message back
+KYC_TIER_PERMISSIONS = {
+    0: [
+        'Browse property listings',
+        'View public profiles',
+    ],
+    1: [
+        'Submit maintenance requests',
+        'View credit score',
+        'Basic payments',
+        'Send messages',
+    ],
+    2: [
+        'Pay rent',
+        'Access savings pockets',
+        'Credit building reporting',
+        'Sign leases',
+    ],
+    3: [
+        'Rent-to-own scheme',
+        'BNPL rent advance',
+        'Premium financing products',
+        'Mortgage referrals',
+    ],
+}

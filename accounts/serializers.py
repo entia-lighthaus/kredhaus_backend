@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import User
 from django.contrib.auth import authenticate
+from django.conf import settings
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -69,9 +70,17 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-#creating a protected endpoint
-# This endpoint returns the currently logged-in user's profile. It's protected, meaning if you call it without a valid token, it rejects you.
+# creating a protected endpoint
+# This endpoint returns the currently logged-in user's profile. It's protected, meaning if you call it without a valid token, it rejects you
+
 class UserProfileSerializer(serializers.ModelSerializer):
+
+    kyc_tier_label   = serializers.CharField(
+        source='get_kyc_tier_display',
+        read_only=True
+    )
+    kyc_unlocks      = serializers.SerializerMethodField()
+    onboarding_steps = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
@@ -81,11 +90,43 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'last_name',
             'email',
             'role',
+            'kyc_tier',
+            'kyc_tier_label',
+            'kyc_unlocks',
             'nin_verified',
             'bvn_verified',
             'phone_verified',
+            'onboarding_steps',
             'date_joined',
         ]
+
+    def get_kyc_unlocks(self, obj):
+        """
+        Returns the list of features the user
+        can currently access based on their tier.
+        """
+        unlocks = []
+        for tier in range(obj.kyc_tier + 1):
+            unlocks += settings.KYC_TIER_PERMISSIONS.get(tier, [])
+        return unlocks
+
+    def get_onboarding_steps(self, obj):
+        """
+        Returns the status of each onboarding step
+        so the frontend knows what still needs to be done.
+        """
+        return {
+            'phone_verified':  obj.phone_verified,
+            'nin_verified':    obj.nin_verified,
+            'bvn_verified':    obj.bvn_verified,
+            'kyc_tier':        obj.kyc_tier,
+            'profile_complete': all([
+                obj.phone_verified,
+                obj.nin_verified,
+                obj.first_name,
+                obj.last_name,
+            ])
+        }
 
 
 # NIN and BVN serializers.
