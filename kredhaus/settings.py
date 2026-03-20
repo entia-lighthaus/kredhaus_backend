@@ -51,6 +51,7 @@ INSTALLED_APPS = [
 
     # Kredhaus apps
     'accounts',
+    'tenancy',
 ]
 
 MIDDLEWARE = [
