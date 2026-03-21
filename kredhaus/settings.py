@@ -1,8 +1,3 @@
-from decouple import config
-
-SECRET_KEY = config('SECRET_KEY')
-DEBUG      = config('DEBUG', cast=bool, default=True)
-
 """
 Django settings for kredhaus project.
 
@@ -17,9 +12,18 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Configuration
+SECRET_KEY = config('SECRET_KEY')
+DEBUG      = config('DEBUG', cast=bool, default=True)
 
 
 # Quick-start development settings - unsuitable for production

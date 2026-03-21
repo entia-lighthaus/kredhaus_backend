@@ -71,6 +71,7 @@ class Unit(models.Model):
     is_occupied   = models.BooleanField(default=False)
     is_available  = models.BooleanField(default=True)
     description   = models.TextField(blank=True)
+    image         = models.ImageField(upload_to='units/', blank=True, null=True)
     created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -272,6 +273,7 @@ class MaintenanceRequest(models.Model):
 
     title       = models.CharField(max_length=128)
     description = models.TextField()
+    photo       = models.ImageField(upload_to='maintenance/', blank=True, null=True)
     category    = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
     urgency     = models.CharField(
         max_length=20,

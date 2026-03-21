@@ -1,13 +1,19 @@
 from django.contrib import admin
 from .models import Property, Unit, Lease, RentPayment, MaintenanceRequest
 
-
+# Admin classes to manage the tenancy models in the Django admin interface
+# This code defines how the Property, Unit, Lease, RentPayment, and MaintenanceRequest models are displayed and managed in the admin panel. It includes list displays, filters, search fields
 class UnitInline(admin.TabularInline):
     model  = Unit
     extra  = 1
     fields = ['unit_number', 'bedrooms', 'bathrooms', 'is_occupied', 'is_available']
 
 
+
+
+# Registering the models with the admin site and customizing their display and management options
+# the owner field in the Property model is limited to users with the role of 'owner', so in the admin interface, when adding or editing a Property, only users who have the role of 'owner' will be available for selection in the owner dropdown. 
+# This ensures that only authorized users can be assigned as property owners.
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
     list_display  = ['name', 'owner', 'property_type', 'city', 'lga', 'total_units', 'occupied_units']
@@ -16,6 +22,9 @@ class PropertyAdmin(admin.ModelAdmin):
     inlines       = [UnitInline]
 
 
+
+# unit admin 
+# th
 @admin.register(Unit)
 class UnitAdmin(admin.ModelAdmin):
     list_display  = ['unit_number', 'property', 'bedrooms', 'is_occupied', 'is_available']
