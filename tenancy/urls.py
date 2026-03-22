@@ -29,7 +29,7 @@ urlpatterns = [
 
     # ── Units ──────────────────────────────────────────────────────────
     path(
-        'properties/<int:property_pk>/units/',
+        'properties/<int:property_pk>/units/', # This URL pattern allows you to list and create units that are associated with a specific property. The <int:property_pk> part captures the primary key of the property, which is then used in the UnitListCreateView to filter units by that property.
         UnitListCreateView.as_view(),
         name='unit-list-create',
     ),
