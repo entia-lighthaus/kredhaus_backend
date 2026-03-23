@@ -1,11 +1,18 @@
 from rest_framework import serializers
-from .models import User, Referee
+
 from django.contrib.auth import authenticate
 from django.conf import settings
+import hashlib
 
+from .models import User, UserProfile, ReferralCredit, DeviceSession
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# AUTH SERIALIZERS
+# ═════════════════════════════════════════════════════════════════════════
 
 class RegisterSerializer(serializers.ModelSerializer):
-
+   
     password         = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
 
@@ -22,7 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def validate_phone(self, value):
-        # Normalise: if starts with 0, replace with +234
+        
         value = value.strip()
         if value.startswith('0'):
             value = '+234' + value[1:]
@@ -45,39 +52,46 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-
+    
     phone    = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         phone    = attrs.get('phone')
         password = attrs.get('password')
-
-        # Normalise phone
+        
         if phone.startswith('0'):
             phone = '+234' + phone[1:]
 
-        # authenticate() checks the password against the hashed version in the DB
+        
         user = authenticate(username=phone, password=password)
 
         if not user:
-            raise serializers.ValidationError('Invalid phone number or password.')
-
+            raise serializers.ValidationError(
+                'Invalid phone number or password.'
+            )
         if not user.is_active:
-            raise serializers.ValidationError('This account has been deactivated.')
+            raise serializers.ValidationError(
+                'This account has been deactivated.'
+            )
 
         attrs['user'] = user
         return attrs
 
 
-# creating a protected endpoint
-# This endpoint returns the currently logged-in user's profile. It's protected, meaning if you call it without a valid token, it rejects you
+# ══════════════════════════════════════════════════════════════════════════
+# USER PROFILE SERIALIZERS
+# ══════════════════════════════════════════════════════════════════════════
 
-class UserProfileSerializer(serializers.ModelSerializer):
-
+class BasicUserSerializer(serializers.ModelSerializer):
+    """
+    Lightweight user info — returned after login
+    and on protected /profile/ endpoint.
+    Includes KYC status and onboarding progress.
+    """
     kyc_tier_label   = serializers.CharField(
         source='get_kyc_tier_display',
-        read_only=True
+        read_only=True,
     )
     kyc_unlocks      = serializers.SerializerMethodField()
     onboarding_steps = serializers.SerializerMethodField()
@@ -96,41 +110,210 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'nin_verified',
             'bvn_verified',
             'phone_verified',
+            'profile_completion',
+            'referral_code',
             'onboarding_steps',
             'date_joined',
         ]
 
     def get_kyc_unlocks(self, obj):
-        """
-        Returns the list of features the user
-        can currently access based on their tier.
-        """
+        
         unlocks = []
         for tier in range(obj.kyc_tier + 1):
             unlocks += settings.KYC_TIER_PERMISSIONS.get(tier, [])
         return unlocks
 
     def get_onboarding_steps(self, obj):
-        """
-        Returns the status of each onboarding step
-        so the frontend knows what still needs to be done.
-        """
+        
         return {
-            'phone_verified':  obj.phone_verified,
-            'nin_verified':    obj.nin_verified,
-            'bvn_verified':    obj.bvn_verified,
-            'kyc_tier':        obj.kyc_tier,
+            'phone_verified':   obj.phone_verified,
+            'nin_verified':     obj.nin_verified,
+            'bvn_verified':     obj.bvn_verified,
+            'kyc_tier':         obj.kyc_tier,
             'profile_complete': all([
                 obj.phone_verified,
                 obj.nin_verified,
                 obj.first_name,
                 obj.last_name,
-            ])
+            ]),
         }
 
 
-# NIN and BVN serializers.
-# They validate input only, they don't map directly to a model. This is the right pattern for action-based endpoints like verification.
+class ExtendedProfileSerializer(serializers.ModelSerializer):
+    """
+    Full UserProfile data — employment, emergency
+    contact, referees, bio.
+    Used by the profile builder screens.
+    """
+    # Read employer_name and monthly_income from User
+    # since they live there (set during KYC Tier 3)
+    employer_name  = serializers.CharField(
+        source='user.employer_name',
+        read_only=True,
+    )
+    monthly_income = serializers.DecimalField(
+        source='user.monthly_income',
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    completion_score = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = UserProfile
+        fields = [
+            # Employment
+            'employment_status',
+            'employer_name',
+            'job_title',
+            'monthly_income',
+            # Emergency contact
+            'emergency_name',
+            'emergency_phone',
+            'emergency_relation',
+            # Referees
+            'referee1_name',
+            'referee1_phone',
+            'referee1_relation',
+            'referee2_name',
+            'referee2_phone',
+            'referee2_relation',
+            # Bio
+            'bio',
+            'date_of_birth',
+            # Score
+            'completion_score',
+            'updated_at',
+        ]
+        read_only_fields = ['completion_score', 'updated_at']
+
+    def get_completion_score(self, obj):
+        return obj.completion_score()
+
+
+class ProfileCompletionSerializer(serializers.ModelSerializer):
+    """
+    Breakdown of each section and its score.
+    Drives the progress bar on the frontend.
+    """
+    completion_breakdown = serializers.SerializerMethodField()
+    profile_photo_url    = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = User
+        fields = [
+            'profile_completion',
+            'profile_photo_url',
+            'completion_breakdown',
+        ]
+
+    def get_profile_photo_url(self, obj):
+        if obj.profile_photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_photo.url)
+        return None
+
+    def get_completion_breakdown(self, obj):
+        # Safely get UserProfile if it exists
+        try:
+            profile = obj.profile
+        except UserProfile.DoesNotExist:
+            profile = None
+
+        return {
+            'basic_info': {
+                'complete': bool(obj.first_name and obj.last_name),
+                'points':   10,
+            },
+            'email_added': {
+                'complete': bool(obj.email),
+                'points':   5,
+            },
+            'profile_photo': {
+                'complete': bool(obj.profile_photo),
+                'points':   15,
+            },
+            'phone_verified': {
+                'complete': obj.phone_verified,
+                'points':   10,
+            },
+            'nin_verified': {
+                'complete': obj.nin_verified,
+                'points':   10,
+            },
+            'bvn_verified': {
+                'complete': obj.bvn_verified,
+                'points':   10,
+            },
+            'kyc_tier_1': {
+                'complete': obj.kyc_tier >= 1,
+                'points':   5,
+            },
+            'kyc_tier_2': {
+                'complete': obj.kyc_tier >= 2,
+                'points':   5,
+            },
+            'emergency_contact': {
+                'complete': bool(
+                    profile and
+                    profile.emergency_name and
+                    profile.emergency_phone
+                ),
+                'points': 20,
+            },
+            'referee_1': {
+                'complete': bool(
+                    profile and
+                    profile.referee1_name and
+                    profile.referee1_phone
+                ),
+                'points': 10,
+            },
+            'referee_2': {
+                'complete': bool(
+                    profile and
+                    profile.referee2_name and
+                    profile.referee2_phone
+                ),
+                'points': 5,
+            },
+        }
+
+
+class ProfilePhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = User
+        fields = ['profile_photo']
+
+    def validate_profile_photo(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError(
+                'Profile photo must be smaller than 5MB.'
+            )
+        allowed = ['image/jpeg', 'image/png', 'image/jpg']
+        if value.content_type not in allowed:
+            raise serializers.ValidationError(
+                'Only JPEG and PNG images are accepted.'
+            )
+        return value
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# IDENTITY VERIFICATION SERIALIZERS
+# ══════════════════════════════════════════════════════════════════════════
+
+class BVNVerificationSerializer(serializers.Serializer):
+    bvn = serializers.CharField(min_length=11, max_length=11)
+
+    def validate_bvn(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                'BVN must be 11 digits, numbers only.'
+            )
+        return value
+    
+
 class NINVerificationSerializer(serializers.Serializer):
     nin = serializers.CharField(min_length=11, max_length=11)
 
@@ -142,23 +325,15 @@ class NINVerificationSerializer(serializers.Serializer):
         return value
 
 
-class BVNVerificationSerializer(serializers.Serializer):
-    bvn = serializers.CharField(min_length=11, max_length=11)
+# ══════════════════════════════════════════════════════════════════════════
+# KYC SERIALIZERS
+# ══════════════════════════════════════════════════════════════════════════
 
-    def validate_bvn(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError(
-                'BVN must be 11 digits with no letters or spaces.'
-            )
-        return value
-    
-
-# KYC Serializers
 class KYCTier1Serializer(serializers.Serializer):
     """
-    Tier 1 requires phone + NIN.
-    Phone is already verified at registration.
-    NIN is submitted here.
+    Tier 1 — phone verified + NIN.
+    NIN is submitted and mock-verified here.
+    In production: calls Prembly API.
     """
     nin = serializers.CharField(min_length=11, max_length=11)
 
@@ -172,11 +347,16 @@ class KYCTier1Serializer(serializers.Serializer):
 
 class KYCTier2Serializer(serializers.Serializer):
     """
-    Tier 2 requires BVN + address.
+    Tier 2 — BVN + address.
+    In production: calls Mono API for BVN.
     """
     bvn           = serializers.CharField(min_length=11, max_length=11)
     address_line1 = serializers.CharField(max_length=255)
-    address_line2 = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    address_line2 = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+    )
     lga           = serializers.CharField(max_length=64)
     state         = serializers.CharField(max_length=64)
 
@@ -190,11 +370,15 @@ class KYCTier2Serializer(serializers.Serializer):
 
 class KYCTier3Serializer(serializers.Serializer):
     """
-    Tier 3 requires income proof + NOK + employment.
+    Tier 3 — income proof + NOK + employment.
+    NOK = Next of Kin.
     """
     employer_name    = serializers.CharField(max_length=128)
-    monthly_income   = serializers.DecimalField(max_digits=12, decimal_places=2)
-    nok_name         = serializers.CharField(max_length=128) #NOK = Next of Kin
+    monthly_income   = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    nok_name         = serializers.CharField(max_length=128)
     nok_phone        = serializers.CharField(max_length=20)
     nok_relationship = serializers.CharField(max_length=64)
 
@@ -208,16 +392,16 @@ class KYCTier3Serializer(serializers.Serializer):
 
 class KYCStatusSerializer(serializers.ModelSerializer):
     """
-    Returns the user's current KYC state —
-    what tier they are on and what they have completed.
+    Current KYC state — tier, what is verified,
+    and what tier the user qualifies for right now.
     """
     kyc_tier_label     = serializers.CharField(
         source='get_kyc_tier_display',
-        read_only=True
+        read_only=True,
     )
     tier_qualified_for = serializers.IntegerField(
         source='get_kyc_requirements_met',
-        read_only=True
+        read_only=True,
     )
 
     class Meta:
@@ -237,131 +421,15 @@ class KYCStatusSerializer(serializers.ModelSerializer):
         ]
 
 
-# The RefereeSerializer identifies attached references for tenancies
-class RefereeSerializer(serializers.ModelSerializer):
+# ══════════════════════════════════════════════════════════════════════════
+# PIN & DEVICE SERIALIZERS
+# ══════════════════════════════════════════════════════════════════════════
 
-    class Meta:
-        model  = Referee
-        fields = [
-            'id',
-            'full_name',
-            'phone',
-            'email',
-            'occupation',
-            'relationship',
-            'created_at',
-        ]
-        read_only_fields = ['id', 'created_at']
-
-
-class EmergencyContactSerializer(serializers.Serializer):
-    emergency_name         = serializers.CharField(max_length=128)
-    emergency_phone        = serializers.CharField(max_length=20)
-    emergency_relationship = serializers.CharField(max_length=64)
-
-
-class ProfilePhotoSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model  = User
-        fields = ['profile_photo']
-
-    def validate_profile_photo(self, value):
-        # Limit file size to 5MB
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                'Profile photo must be smaller than 5MB.'
-            )
-        # Allow only image types
-        allowed = ['image/jpeg', 'image/png', 'image/jpg']
-        if value.content_type not in allowed:
-            raise serializers.ValidationError(
-                'Only JPEG and PNG images are accepted.'
-            )
-        return value
-
-
-class ProfileCompletionSerializer(serializers.ModelSerializer):
+class SetPINSerializer(serializers.Serializer):
     """
-    Returns the full profile completion breakdown.
-    Used by the frontend to drive the progress bar.
+    Sets a PIN and registers the device.
+    Returns a device_token the app stores locally.
     """
-    referees           = RefereeSerializer(many=True, read_only=True)
-    completion_breakdown = serializers.SerializerMethodField()
-
-    class Meta:
-        model  = User
-        fields = [
-            'profile_completion',
-            'profile_photo',
-            'first_name',
-            'last_name',
-            'email',
-            'phone_verified',
-            'nin_verified',
-            'bvn_verified',
-            'kyc_tier',
-            'emergency_name',
-            'emergency_phone',
-            'emergency_relationship',
-            'referees',
-            'completion_breakdown',
-        ]
-
-    # This method calculates which parts of the profile are complete and how many points each part is worth.
-    def get_completion_breakdown(self, obj):
-        return {
-            'basic_info': {
-                'complete': bool(obj.first_name and obj.last_name),
-                'points':   10,
-            },
-            'email_added': {
-                'complete': bool(obj.email),
-                'points':   5,
-            },
-            'profile_photo': {
-                'complete': bool(obj.profile_photo),
-                'points':   5,
-            },
-            'phone_verified': {
-                'complete': obj.phone_verified,
-                'points':   10,
-            },
-            'nin_verified': {
-                'complete': obj.nin_verified,
-                'points':   10,
-            },
-            'bvn_verified': {
-                'complete': obj.bvn_verified,
-                'points':   10,
-            },
-            'kyc_tier_1': {
-                'complete': obj.kyc_tier >= 1,
-                'points':   10,
-            },
-            'kyc_tier_2': {
-                'complete': obj.kyc_tier >= 2,
-                'points':   10,
-            },
-            'emergency_contact': {
-                'complete': bool(
-                    obj.emergency_name and obj.emergency_phone
-                ),
-                'points':   15,
-            },
-            'referee_1': {
-                'complete': obj.referees.count() >= 1,
-                'points':   10,
-            },
-            'referee_2': {
-                'complete': obj.referees.count() >= 2,
-                'points':   5,
-            },
-        }
-    
-
-# serializers to handle device authentiction
-class SetPINSerializer(serializers.Serializer): 
     pin         = serializers.CharField(
         min_length=4,
         max_length=6,
@@ -372,14 +440,23 @@ class SetPINSerializer(serializers.Serializer):
         max_length=6,
         write_only=True,
     )
+    device_name = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        default='Unknown Device',
+    )
+    platform    = serializers.ChoiceField(
+        choices=['android', 'ios', 'web'],
+        default='android',
+    )
 
     def validate_pin(self, value):
         if not value.isdigit():
             raise serializers.ValidationError(
                 'PIN must contain digits only.'
             )
-        # Block obvious PINs
-        blocked = ['0000', '1234', '1111', '0000', '9999']
+        blocked = ['0000', '1234', '1111', '9999', '1212']
         if value in blocked:
             raise serializers.ValidationError(
                 'This PIN is too simple. Please choose a stronger PIN.'
@@ -395,10 +472,80 @@ class SetPINSerializer(serializers.Serializer):
 
 
 class PINLoginSerializer(serializers.Serializer):
-    phone     = serializers.CharField()
-    pin       = serializers.CharField(
+    """
+    Login using phone + PIN + device_token.
+    No password required once PIN is set.
+    """
+    phone        = serializers.CharField()
+    pin          = serializers.CharField(
         min_length=4,
         max_length=6,
         write_only=True,
     )
-    device_id = serializers.CharField()
+    device_token = serializers.CharField()
+
+    def validate_phone(self, value):
+        if value.startswith('0'):
+            value = '+234' + value[1:]
+        return value
+
+
+class DeviceSessionSerializer(serializers.ModelSerializer):
+    """
+    Read serializer — lists trusted devices
+    on a user's account.
+    """
+    class Meta:
+        model  = DeviceSession
+        fields = [
+            'id',
+            'device_name',
+            'platform',
+            'is_active',
+            'last_used',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# REFERRAL SERIALIZERS
+# ══════════════════════════════════════════════════════════════════════════
+
+class ReferralCreditSerializer(serializers.ModelSerializer):
+    """
+    One credit event — who triggered it,
+    what level, how many points.
+    """
+    source_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ReferralCredit
+        fields = [
+            'id',
+            'source_name',
+            'credit_type',
+            'level',
+            'points',
+            'description',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_source_name(self, obj):
+        return (
+            f'{obj.source_user.first_name} '
+            f'{obj.source_user.last_name}'
+        )
+
+
+class ReferralDashboardSerializer(serializers.Serializer):
+    """
+    Full referral summary for the dashboard screen.
+    """
+    referral_code    = serializers.CharField()
+    referral_link    = serializers.CharField()
+    total_referrals  = serializers.IntegerField()
+    direct_referrals = serializers.IntegerField()
+    total_points     = serializers.IntegerField()
+    tree             = serializers.ListField()
