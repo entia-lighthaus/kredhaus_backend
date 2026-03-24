@@ -549,3 +549,26 @@ class ReferralDashboardSerializer(serializers.Serializer):
     direct_referrals = serializers.IntegerField()
     total_points     = serializers.IntegerField()
     tree             = serializers.ListField()
+
+
+
+class UserBriefSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()  # computed, not a model field
+    avatar_initials = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'avatar_initials', 'role']
+        # ↑ full_name is allowed here because it's defined as a
+        #   SerializerMethodField above — not pulled from the model directly
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+    def get_avatar_initials(self, obj):
+        initials = ""
+        if obj.first_name:
+            initials += obj.first_name[0]
+        if obj.last_name:
+            initials += obj.last_name[0]
+        return initials.upper() or obj.phone[:2]

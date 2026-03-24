@@ -20,10 +20,9 @@ from .views import (
     DeviceRevokeView,
     ReferralDashboardView,
     ReferralCreditHistoryView,
+    DevVerifyPhoneView
 )
     
-    
-
 urlpatterns = [
 
     # ── Auth ───────────────────────────────────────────────────────────
@@ -42,6 +41,7 @@ urlpatterns = [
     # ── Identity ───────────────────────────────────────────────────────
     path('verify/bvn/',    BVNVerificationView.as_view(), name='verify-bvn'),
     path('verify/nin/',    NINVerificationView.as_view(), name='verify-nin'),
+    path('dev/verify-phone/', DevVerifyPhoneView.as_view(), name='dev-verify-phone'),
 
     # ── KYC ────────────────────────────────────────────────────────────
     path('kyc/status/',    KYCStatusView.as_view(),  name='kyc-status'),

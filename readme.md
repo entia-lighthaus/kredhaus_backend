@@ -515,20 +515,24 @@ All endpoints return consistent error shapes.
 
 ## Complete Endpoint Reference
 
-```
-POST   /api/v1/accounts/register/          No auth    Create account
-POST   /api/v1/accounts/login/             No auth    Get JWT tokens
-POST   /api/v1/accounts/token/refresh/     No auth    Refresh access token
-POST   /api/v1/accounts/logout/            Auth       Blacklist refresh token
-GET    /api/v1/accounts/profile/           Auth       Get current user
-POST   /api/v1/accounts/verify/nin/        Auth       Submit and verify NIN
-POST   /api/v1/accounts/verify/bvn/        Auth       Link and verify BVN
-GET    /api/v1/accounts/kyc/status/        Auth       Check KYC status
-POST   /api/v1/accounts/kyc/tier1/         Auth       Upgrade to Tier 1
-POST   /api/v1/accounts/kyc/tier2/         Auth KYC1  Upgrade to Tier 2
-POST   /api/v1/accounts/kyc/tier3/         Auth KYC2  Upgrade to Tier 3
-```
-
+POST   /api/v1/accounts/register/           public   — create account
+POST   /api/v1/accounts/login/              public   — password login
+POST   /api/v1/accounts/login/pin/          public   — PIN login
+POST   /api/v1/accounts/logout/             auth     — blacklist token
+POST   /api/v1/accounts/token/refresh/      public   — refresh token
+GET    /api/v1/accounts/profile/            auth     — basic profile. Get current user
+GET    /api/v1/accounts/profile/builder/    auth     — full profile + score
+PATCH  /api/v1/accounts/profile/builder/    auth     — update profile
+POST   /api/v1/accounts/profile/photo/      auth     — upload photo
+POST   /api/v1/accounts/pin/set/            auth     — set PIN + get device token
+POST   /api/v1/accounts/verify/nin/         auth     — verify NIN
+POST   /api/v1/accounts/verify/bvn/         auth     — verify BVN
+GET    /api/v1/accounts/kyc/status/         auth     — KYC status
+POST   /api/v1/accounts/kyc/tier1/          auth     — upgrade to Tier 1
+POST   /api/v1/accounts/kyc/tier2/          auth     — upgrade to Tier 2
+POST   /api/v1/accounts/kyc/tier3/          auth     — upgrade to Tier 3
+GET    /api/v1/accounts/referral/           auth     — referral dashboard + tree
+GET    /api/v1/accounts/referral/credits/   auth     — credit history
 ----------------------------------------------------------------------------------
 
 ## Modules Roadmap

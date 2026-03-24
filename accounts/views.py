@@ -261,7 +261,8 @@ class BVNVerificationView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+
 class NINVerificationView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -286,6 +287,27 @@ class NINVerificationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class DevVerifyPhoneView(APIView):
+    """
+    DEVELOPMENT ONLY — manually marks phone
+    as verified without OTP.
+    TO DO : Remove this before going to production.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        request.user.phone_verified = True
+        request.user.save(update_fields=['phone_verified'])
+        return Response({
+            'message':        'Phone marked as verified (dev mode).',
+            'phone_verified': True,
+        })
+# When we are ready to delve into production, we will build a proper OTP system:
+# POST /accounts/otp/send/     ← sends SMS via Termii
+# POST /accounts/otp/verify/   ← verifies code, sets phone_verified = True
+
+
+    
 # ══════════════════════════════════════════════════════════════════════════
 # KYC VIEWS
 # ══════════════════════════════════════════════════════════════════════════

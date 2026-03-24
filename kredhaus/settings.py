@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     # Kredhaus apps
     'accounts',
     'tenancy',
+    'messaging', # for real-time chat between tenants and landlords
+    'channels',  # for WebSocket support 
 ]
 
 MIDDLEWARE = [
@@ -152,6 +154,19 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES':      ('Bearer',),
 }
+
+# Channels configuration for WebSocket support (real-time chat)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    }
+}
+
+# For local dev without Redis, use in-memory (single server only):
+# "BACKEND": "channels.layers.InMemoryChannelLayer"
+# =========================================================
+
 
 # REF
 # This references the KYC permission for each user that enables them to perform various actions on the app
