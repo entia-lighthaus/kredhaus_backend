@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/v1/accounts/', include('accounts.urls')),
     path('api/v1/tenancy/',  include('tenancy.urls')),
     path('api/v1/messaging/', include('messaging.urls')),
+    path('api/v1/utilities/', include('utilities.urls')),
 ]
 
 if settings.DEBUG:

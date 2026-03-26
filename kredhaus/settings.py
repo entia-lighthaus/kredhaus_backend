@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'accounts',
     'tenancy',
     'messaging', # for real-time chat between tenants and landlords
+    'utilities',
     'channels',  # for WebSocket support 
 ]
 
