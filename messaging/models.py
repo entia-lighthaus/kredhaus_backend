@@ -9,6 +9,7 @@ class Conversation(models.Model):
         ('homeowner',  'Homeowner'),
         ('vendor',    'Vendor'),
         ('neighbor',  'Neighbor'),
+        ('supplier',  'Supplier'),  # New: for gas/water supplier chats
     ]
 
 
@@ -35,6 +36,14 @@ class Conversation(models.Model):
     # Tenant ↔ Vendor: scoped to a maintenance request
     maintenance_request = models.OneToOneField(
         'tenancy.MaintenanceRequest',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='conversation'
+    )
+
+    # Tenant ↔ Supplier: scoped to a supplier service request
+    supplier_service_request = models.OneToOneField(
+        'utilities.SupplierServiceRequest',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='conversation'
@@ -68,7 +77,16 @@ class Message(models.Model):
     conversation = models.ForeignKey(
         Conversation, on_delete=models.CASCADE, related_name='messages'
     )
-    sender = models.ForeignKey(User, on_delete=models.PROTECT)
+    sender = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
+    sender_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('user',    'User'),
+            ('supplier', 'Supplier'),
+        ],
+        default='user'
+    )
+    sender_name = models.CharField(max_length=255)
     body = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False)
