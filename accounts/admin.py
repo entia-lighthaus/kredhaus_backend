@@ -7,7 +7,7 @@ from .models import User
 class UserAdmin(BaseUserAdmin):
     ordering        = ['phone']
     list_display    = [
-        'phone', 'first_name', 'last_name',
+        'id', 'phone', 'first_name', 'last_name',
         'role', 'kyc_tier', 'phone_verified',
         'nin_verified', 'bvn_verified', 'is_active'
     ]

@@ -2,6 +2,7 @@
 from django.db import models
 from accounts.models import User
 
+
 class Conversation(models.Model):
     CONTEXT_TYPES = [
         ('landlord',  'Landlord'),
@@ -10,18 +11,28 @@ class Conversation(models.Model):
         ('neighbor',  'Neighbor'),
     ]
 
-    # The lease this conversation belongs to
-    # (keeps chat scoped to a tenancy — not floating globally)
-    # Landlord-tenant threads will be linked to the lease, while vendor threads will be linked via the maintenance_request FK below.
+
+    # Tenant ↔ Landlord: scoped to a lease
+    # Note: This is now optional, since some conversations (e.g. Tenant ↔ Neighbor) won't have a lease context.
     lease = models.ForeignKey(
         'tenancy.Lease',
         on_delete=models.CASCADE,
+        null=True, blank=True,         # ← now optional
         related_name='conversations'
     )
-    participants = models.ManyToManyField(User, related_name='conversations')
-    context_type = models.CharField(max_length=20, choices=CONTEXT_TYPES)
 
-    # For vendor threads: link to the maintenance request that spawned it
+
+    # Tenant ↔ Neighbor: scoped to a property
+    # Note: This is now optional, since some conversations (e.g. Tenant ↔ Landlord) won't have a property context.
+    property = models.ForeignKey(
+        'tenancy.Property',
+        on_delete=models.CASCADE,
+        null=True, blank=True,         # ← new
+        related_name='conversations'
+    )
+
+
+    # Tenant ↔ Vendor: scoped to a maintenance request
     maintenance_request = models.OneToOneField(
         'tenancy.MaintenanceRequest',
         on_delete=models.SET_NULL,
@@ -29,18 +40,26 @@ class Conversation(models.Model):
         related_name='conversation'
     )
 
+    context_type = models.CharField(max_length=20, choices=CONTEXT_TYPES)
+    participants = models.ManyToManyField(
+        'accounts.User',
+        related_name='conversations'
+    )
+
+    last_message_at = models.DateTimeField(null=True, blank=True)
+    last_message_preview = models.CharField(max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-last_message_at']
 
-    # Denormalised for inbox performance — avoid N+1 on list view
-    # Updated on every new message, or when a message is edited (e.g. to update the preview text)
-    last_message_at = models.DateTimeField(null=True, blank=True)
-    last_message_preview = models.CharField(max_length=120, blank=True)
-
-    def __str__(self):
-        return f"{self.context_type} thread | Lease {self.lease_id}"
+    def clean(self):
+        # Enforce: at least one scope must be set
+        from django.core.exceptions import ValidationError
+        if not any([self.lease, self.property, self.maintenance_request]):
+            raise ValidationError(
+                'A conversation must be scoped to a lease, property, or maintenance request.'
+            )
 
 
 # ── Message ───────────────────────────────────────────────────────────────────
