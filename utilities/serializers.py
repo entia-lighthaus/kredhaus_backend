@@ -4,7 +4,7 @@ from .models import (
     Utility, UtilityAccount, UtilityBill,
     UtilityRate, UtilityMeterProvider, UtilityMeterReading, UtilityUsageRecord,
     Supplier, SupplierService, SupplierAvailability, SupplierServiceRequest,
-    SupplierMessage, SupplierRating
+    SupplierMessage, SupplierRating, WaterSupplierDetail
 )
 
 
@@ -262,3 +262,34 @@ class SupplierServiceRequestSerializer(serializers.ModelSerializer):
             'delivery_fee', 'total_amount'
         ]
 
+
+
+class WaterSupplierDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WaterSupplierDetail
+        fields = [
+            'water_type', 'sachets_per_bag', 'ml_per_sachet',
+            'min_order_bags', 'nafdac_certified',
+            'volume_options', 'free_delivery_threshold'
+        ]
+
+class WaterSupplierSerializer(serializers.ModelSerializer):
+    water_detail = WaterSupplierDetailSerializer(read_only=True)
+    is_online = serializers.SerializerMethodField()
+    services = SupplierServiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Supplier
+        fields = [
+            'id', 'company_name', 'logo', 'city',
+            'average_rating', 'total_reviews',
+            'is_available', 'is_online',
+            'pickup_time_minutes', 'delivery_fee',
+            'is_safety_certified',   # maps to NAFDAC on the UI
+            'phone_number',
+            'water_detail', 'services',
+        ]
+
+    def get_is_online(self, obj):
+        avail = getattr(obj, 'availability', None)
+        return avail.is_online if avail else False

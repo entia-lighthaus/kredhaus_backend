@@ -24,10 +24,12 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/accounts/', include('accounts.urls')),
-    path('api/v1/tenancy/',  include('tenancy.urls')),
-    path('api/v1/messaging/', include('messaging.urls')),
-    path('api/v1/utilities/', include('utilities.urls')),
+    path('api/v1/accounts/', include('accounts.urls')),     # accounts app will include endpoints for user registration, authentication, and profile management
+    path('api/v1/tenancy/',  include('tenancy.urls')),      # tenancy app will include endpoints for managing properties, leases, and rent payments
+    path('api/v1/messaging/', include('messaging.urls')),   # messaging app will include endpoints for managing conversations and messages between tenants, landlords, and other parties (e.g. neighbors, vendors)
+    path('api/v1/utilities/', include('utilities.urls')),   # utilities app will include endpoints for managing utility accounts, bills, and supplier service requests
+    path('api/v1/wallet/',      include('wallet.urls')),    # wallet app will include endpoints for managing tenant wallets, savings pockets, and transactions
+    path('api/v1/financing/',   include('financing.urls')), # financing app will include endpoints for rent advances, utility advances, and credit builder loans
 ]
 
 if settings.DEBUG:

@@ -1,8 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
+#from messaging import views
 from .views import (
     UtilityViewSet, UtilityAccountViewSet, UtilityBillViewSet, UtilityRateViewSet,
-    SupplierViewSet, SupplierServiceRequestViewSet, SupplierRatingViewSet,
+    SupplierViewSet, SupplierServiceRequestViewSet, SupplierRatingViewSet, WaterSupplierListView,
     webhook_meter_reading, meter_reading_list
 )
 
@@ -19,5 +21,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('webhooks/meter-reading/', webhook_meter_reading, name='webhook-meter-reading'),
     path('accounts/<int:account_id>/meter-readings/', meter_reading_list, name='meter-reading-list'),
+    #path('water/suppliers/', views.WaterSupplierListView.as_view(), name='water-suppliers'),
+    path('water/suppliers/', WaterSupplierListView.as_view(), name='water-suppliers'), 
 ]
 

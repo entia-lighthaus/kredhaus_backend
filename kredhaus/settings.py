@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'messaging', # for real-time chat between tenants and landlords
     'utilities',
     'channels',  # for WebSocket support 
+    'wallet',    # for balances, transactions, savings pockets, virtual accounts
+    'financing', # for loan applications and financial services such as Rent Advance, Utility Advance, Credit Builder Loan etc
 ]
 
 MIDDLEWARE = [
@@ -197,3 +199,27 @@ KYC_TIER_PERMISSIONS = {
         'Mortgage referrals',
     ],
 }
+
+
+# ── Flutterwave ────────────────────────────────────────────────────────────
+# Flutterwave is our payment processor, used for all payments and disbursements on the platform. 
+# We use their API to create payment links, process payments, manage virtual accounts, and handle payouts to landlords and suppliers.
+FLUTTERWAVE_SECRET_KEY  = config('FLUTTERWAVE_SECRET_KEY', default='')
+FLUTTERWAVE_PUBLIC_KEY  = config('FLUTTERWAVE_PUBLIC_KEY', default='')
+FLUTTERWAVE_BASE_URL    = 'https://api.flutterwave.com/v3'
+FLUTTERWAVE_WEBHOOK_SECRET = config('FLUTTERWAVE_WEBHOOK_SECRET', default='')
+
+# ── Wallet ─────────────────────────────────────────────────────────────────
+# The wallet system tracks user balances, transactions, and virtual accounts. 
+# It integrates with Flutterwave for funding and payouts, and supports multiple currencies.
+WALLET_CURRENCIES       = ['NGN', 'USD']
+WALLET_DEFAULT_CURRENCY = 'NGN'
+PLATFORM_FEE_PERCENT    = 1.5    # 1.5% on transactions
+
+# ── Financing ──────────────────────────────────────────────────────────────
+# This section defines the parameters for our financing products, including Rent Advance, Utility Advance, and Credit Builder Loans.
+RENT_ADVANCE_MAX_PERCENT  = 50    # max 50% of rent cycle
+RENT_ADVANCE_FEES         = {'3': 3.0, '6': 5.0, '9': 7.0}
+UTILITY_ADVANCE_MAX       = 50000 # ₦50,000
+UTILITY_ADVANCE_FEES      = {'1': 2.0, '2': 3.5, '3': 5.0}
+CREDIT_BUILDER_MONTHLY_FEE = 1500 # ₦1,500/month

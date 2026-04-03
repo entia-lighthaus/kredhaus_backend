@@ -9,7 +9,7 @@ class Conversation(models.Model):
         ('homeowner',  'Homeowner'),
         ('vendor',    'Vendor'),
         ('neighbor',  'Neighbor'),
-        ('supplier',  'Supplier'),  # New: for gas/water supplier chats
+        ('supplier',  'Supplier'),  # for gas/water supplier chats
     ]
 
 
@@ -86,7 +86,7 @@ class Message(models.Model):
         ],
         default='user'
     )
-    sender_name = models.CharField(max_length=255)
+    sender_name = models.CharField(max_length=255, blank=True, default='')
     body = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False)

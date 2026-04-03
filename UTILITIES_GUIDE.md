@@ -306,7 +306,7 @@ utilities/
 
 ---
 
-# 🔌 Consumption Tracking (Extension)
+# Consumption Tracking (Extension)
 
 ## Overview
 
@@ -706,13 +706,13 @@ print(f"Amount due: ₦{usage_record.amount_due}")
 
 ## Key Design Decisions
 
-✅ **Flexible Data Ingestion**: Smart meter AND manual input in same system  
-✅ **Separation of Concerns**: Raw reading → processed usage → bill  
-✅ **Extensible Rates**: Multiple rates per utility with effective dates  
-✅ **Audit Trail**: Track who submitted readings and when  
-✅ **No Auto-Billing**: Usage records created but bills must be generated separately  
-✅ **Validation**: Check for negative consumption, duplicates, future dates  
-✅ **Cost Breakdown**: Show tenants exactly what they're paying for  
+**Flexible Data Ingestion**: Same system handles smart meters, manual input, and hybrid
+**Separation of Concerns**: Raw reading → processed usage → bill  
+**Extensible Rates**: Multiple rates per utility with effective dates  
+**Audit Trail**: Track who submitted readings and when  
+**No Auto-Billing**: Usage records created but bills must be generated separately  
+**Validation**: Check for negative consumption, duplicates, future dates  
+**Cost Breakdown**: Show tenants exactly what they're paying for  
 
 ---
 

@@ -1,5 +1,7 @@
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action, api_view
+from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -21,9 +23,9 @@ from .models import (
 from .serializers import (
     UtilitySerializer, UtilityAccountSerializer, UtilityBillSerializer,
     UtilityRateSerializer, UtilityMeterProviderSerializer,
-    UtilityMeterReadingSerializer, UtilityUsageRecordSerializer,
+    UtilityMeterReadingSerializer, UtilityUsageRecordSerializer, 
     SupplierListSerializer, SupplierDetailSerializer, SupplierServiceRequestSerializer,
-    SupplierMessageSerializer, SupplierRatingSerializer
+    SupplierMessageSerializer, SupplierRatingSerializer, WaterSupplierSerializer
 )
 from .permissions import CanManageUtilityAccounts
 from .services import process_meter_reading, confirm_meter_reading, validate_meter_reading
@@ -636,3 +638,24 @@ class SupplierRatingViewSet(viewsets.ModelViewSet):
             reviewer_name=reviewer_name
         )
 
+
+
+class WaterSupplierListView(ListAPIView):
+    """
+    GET /api/v1/utilities/water/suppliers/?water_type=sachet
+    Powers the Sachet / Tanker toggle on the frontend.
+    """
+    serializer_class = WaterSupplierSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        water_type = self.request.query_params.get('water_type', 'sachet')
+        return Supplier.objects.filter(
+            utility__name='water',
+            status='active',
+            water_detail__water_type=water_type
+        ).select_related(
+            'water_detail', 'availability'
+        ).prefetch_related(
+            'services'
+        ).order_by('-average_rating')

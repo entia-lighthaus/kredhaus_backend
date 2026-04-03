@@ -504,8 +504,6 @@ class UtilityUsageRecord(models.Model):
         }
 
 
-
-
 # ── Supplier Management (Gas, Water, etc) ──────────────────────────────────
 
 class Supplier(models.Model):
@@ -578,71 +576,6 @@ class Supplier(models.Model):
         return f'{self.company_name} ({self.utility.display_name})'
 
 
-
-# ── Water Supplier Details ────────────────────────────────────────────────
-# This model extends Supplier with water-specific details, such as whether they offer sachet water or tanker delivery, and the associated specifications for each type.
-# Only applicable for suppliers where utility.name == 'water'. 
-# This allows us to capture unique attributes relevant to water suppliers without cluttering the main Supplier model, which also serves gas suppliers.
-class WaterSupplierDetail(models.Model):
-    """
-    Water-specific extension for Supplier.
-    Only exists for suppliers whose utility.name == 'water'.
-    Drives the Sachet / Tanker toggle on the frontend.
-    """
-    
-    WATER_TYPE_CHOICES = [
-        ('sachet', 'Sachet Water'),
-        ('tanker', 'Tanker Delivery'),
-    ]
-
-    supplier = models.OneToOneField(
-        Supplier,
-        on_delete=models.CASCADE,
-        related_name='water_detail'
-    )
-    water_type = models.CharField(max_length=10, choices=WATER_TYPE_CHOICES)
-
-
-    # Sachet-specific
-    sachets_per_bag = models.IntegerField(
-        default=50,
-        help_text='Number of sachets per bag (usually 50)'
-    )
-    ml_per_sachet = models.IntegerField(
-        default=500,
-        help_text='Volume per sachet in ml (usually 500ml)'
-    )
-    min_order_bags = models.IntegerField(
-        default=2,
-        help_text='Minimum bags per order'
-    )
-    nafdac_certified = models.BooleanField(
-        default=False,
-        help_text='NAFDAC approval for sachet water'
-    )
-
-
-    # Tanker-specific
-    volume_options = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='e.g. [{"litres": 5000, "price": 15000}, {"litres": 10000, "price": 25000}]'
-    )
-    free_delivery_threshold = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True, blank=True,
-        help_text='Order value above which delivery is free'
-    )
-
-    def __str__(self):
-        return f'{self.supplier.company_name} ({self.get_water_type_display()})'
-    
-
-
-# ── Supplier Services ───────────────────────────────────────────────────
-# Represents the specific services offered by a supplier (e.g., 12kg gas cylinder refill, 6kg gas cylinder refill, water tanker delivery, etc).
-# This allows us to capture the variety of offerings from each supplier, along with their pricing and specifications, which can then be displayed to tenants when they are placing orders.
 class SupplierService(models.Model):
     """
     What a supplier offers (12kg gas cylinder, 6kg gas cylinder, delivery, etc).
@@ -679,8 +612,6 @@ class SupplierService(models.Model):
         return f'{self.supplier.company_name} - {self.name}'
 
 
-
-# ── Supplier Availability ────────────────────────────────────────────────
 class SupplierAvailability(models.Model):
     """
     Real-time availability status of suppliers.
@@ -709,9 +640,6 @@ class SupplierAvailability(models.Model):
         return f'{self.supplier.company_name} - {status}'
 
 
-
-# ── Supplier Service Requests ────────────────────────────────────────────
-# Represents a tenant's request for a supplier service (e.g., ordering a gas cylinder refill or water delivery).
 class SupplierServiceRequest(models.Model):
     """
     Tenant's order request to a supplier (pickup/delivery request).
@@ -787,7 +715,6 @@ class SupplierServiceRequest(models.Model):
         return f'{self.unit} - {self.supplier.company_name} (#{self.id})'
 
 
-
 class SupplierMessage(models.Model):
     """
     Chat messages between tenant and supplier for a service request.
@@ -808,7 +735,7 @@ class SupplierMessage(models.Model):
         ]
     )
     
-    sender_name     = models.CharField(max_length=255, default='') # Store sender's name for display (can be tenant name or supplier company name)
+    sender_name     = models.CharField(max_length=255)
     message_text    = models.TextField()
     
     # Attachments (optional)
@@ -827,7 +754,6 @@ class SupplierMessage(models.Model):
         return f'{self.sender_name} -> {self.service_request.supplier.company_name}'
 
 
-# 
 class SupplierRating(models.Model):
     """
     Tenant's rating and review for a supplier after service completion.
