@@ -59,7 +59,7 @@ class RentAdvance(models.Model):
     repayment_months  = models.CharField(
         max_length=2,
         choices=PLAN_CHOICES,
-        default='6',
+        default='6', 
     )
     flat_fee_percent  = models.DecimalField(max_digits=5, decimal_places=2)
     flat_fee_amount   = models.DecimalField(
@@ -150,8 +150,8 @@ class RentAdvance(models.Model):
 
 
 # ── Rent Advance Repayment ─────────────────────────────────────────────────
-# Each time a tenant makes a repayment towards their Rent Advance, we create a RentAdvanceRepayment record. T
-# his allows us to track the repayment schedule, amounts, and status of each instalment. 
+# Each time a tenant makes a repayment towards their Rent Advance, we create a RentAdvanceRepayment record. 
+# This allows us to track the repayment schedule, amounts, and status of each instalment. 
 # It also helps with reporting to credit bureaus and calculating the tenant's credit score impact.
 class RentAdvanceRepayment(models.Model):
 
@@ -521,8 +521,12 @@ class CreditBuilderRepayment(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
     )
-    reported_to_bureau = models.BooleanField(default=False)
-    bureau_reference   = models.CharField(max_length=128, blank=True)
+    reported_to_bureau = models.BooleanField(default=False) 
+    # We report to credit bureaus when repayments are made, and also if repayments are missed. 
+    # This helps tenants build their credit history when they repay on time, and gives them an incentive to stay current.
+    # Our vision to create a financial identity for every tenant means that we want to ensure that all their positive financial behaviors 
+    # are captured and reflected in their credit profile, while also encouraging responsible borrowing and repayment habits.
+    bureau_reference   = models.CharField(max_length=128, blank=True) # This field can store the reference ID returned by the credit bureau when we report a repayment. It allows us to track which repayments have been reported and manage any updates or corrections if needed.
 
     class Meta:
         ordering = ['instalment_number']
