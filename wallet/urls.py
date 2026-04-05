@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    DevFundWalletView,
     WalletView,
     WalletSummaryView,
     TransactionListView,
@@ -73,4 +74,7 @@ urlpatterns = [
         FlutterwaveWebhookView.as_view(),
         name='webhook',
     ),
+
+    # ── Dev Tools (Remove in Production) ───────────────────────────────────────────────
+    path('dev/fund/', DevFundWalletView.as_view(), name='dev-fund'),
 ]

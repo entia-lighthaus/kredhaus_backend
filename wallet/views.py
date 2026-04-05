@@ -122,11 +122,13 @@ class SavingsPocketListCreateView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+
     def get(self, request):
         wallet, _ = WalletService.get_or_create_wallet(request.user)
         pockets   = wallet.pockets.filter(is_active=True)
         serializer = SavingsPocketSerializer(pockets, many=True)
         return Response({'pockets': serializer.data})
+    
 
     def post(self, request):
         serializer = SavingsPocketCreateSerializer(data=request.data)
@@ -145,17 +147,35 @@ class SavingsPocketListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # credit_vault pockets are only created internally
+        # by the Credit Builder Loan — block manual creation
+        if serializer.validated_data['pocket_type'] == 'credit_vault':
+            return Response(
+                {
+                    'error': (
+                        'Credit vault pockets are created automatically '
+                        'when you apply for a Credit Builder Loan. '
+                        'You cannot create one manually.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         pocket = WalletService.create_pocket(
-            wallet       = wallet,
-            name         = serializer.validated_data['name'],
-            pocket_type  = serializer.validated_data['pocket_type'],
+            wallet        = wallet,
+            name          = serializer.validated_data['name'],
+            pocket_type   = serializer.validated_data['pocket_type'],
             target_amount = serializer.validated_data.get('target_amount'),
+            is_locked     = True,   # pockets are always locked on creation
         )
 
         return Response(
             SavingsPocketSerializer(pocket).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+
 
 
 class FundPocketView(APIView):
@@ -439,3 +459,26 @@ class FlutterwaveWebhookView(APIView):
         """Handle outgoing transfer confirmation."""
         # Mark related transaction as completed
         return Response({'status': 'acknowledged'})
+    
+
+# The DevFundWalletView is a development-only endpoint that allows us to credit the wallet with a specified amount for testing purposes. 
+# It should never be used in production and should be protected by the DEBUG setting to prevent unauthorized access.
+# We can change this to a management command or admin-only view in the future if needed, but for now it serves as a quick way to fund wallets during development and testing without going through the full payment flow.
+class DevFundWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not __import__('django.conf', fromlist=['settings']).settings.DEBUG:
+            return Response({'error': 'Dev only.'}, status=403)
+        amount = request.data.get('amount', 10000)
+        wallet, _ = WalletService.get_or_create_wallet(request.user)
+        WalletService.credit_wallet(
+            wallet=wallet,
+            amount=amount,
+            transaction_type='credit',
+            description='Dev test funding',
+        )
+        return Response({
+            'message': f'Wallet credited with ₦{amount}',
+            'new_balance': str(wallet.balance),
+        })

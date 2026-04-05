@@ -53,8 +53,9 @@ class SavingsPocketCreateSerializer(serializers.Serializer):
     pocket_type   = serializers.ChoiceField(
         choices=[
             'rent', 'home_deposit', 'emergency',
-            'utility', 'custom',
+            'utility', 'credit_vault', 'groceries', 'vacation', 'education', 'custom',
         ],
+
         default='custom',
     )
     target_amount = serializers.DecimalField(

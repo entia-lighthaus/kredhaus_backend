@@ -145,7 +145,7 @@ class WalletService:
 
     @staticmethod
     def create_pocket(wallet, name, pocket_type='custom',
-                      target_amount=None, is_locked=False):
+                      target_amount=None, is_locked=True):
         """Create a new savings pocket on a wallet."""
         pocket = SavingsPocket.objects.create(
             wallet        = wallet,
